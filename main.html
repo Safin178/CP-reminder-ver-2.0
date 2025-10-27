@@ -46,7 +46,7 @@
         }
 
         label {
-            font-size: 0.9rem;
+            font-size: .9rem;
             color: var(--muted);
         }
 
@@ -71,18 +71,18 @@
 
         .small {
             padding: 8px 10px;
-            font-size: 0.9rem;
+            font-size: .9rem;
             background: #09222a;
             color: var(--accent);
-            border: 1px solid rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, .03);
         }
 
         .table-wrap {
             overflow-x: auto;
             margin-top: 12px;
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            border: 1px solid rgba(255, 255, 255, .04);
+            background: linear-gradient(180deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .01));
             padding: 8px;
             user-select: text;
             -webkit-user-select: text;
@@ -97,7 +97,7 @@
 
         th,
         td {
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, .04);
             padding: 8px 10px;
             text-align: left;
             overflow: hidden;
@@ -106,9 +106,8 @@
             -webkit-user-select: text;
         }
 
-        /* allow header to wrap so contest title + date fits */
         thead th {
-            background: linear-gradient(180deg, rgba(12, 54, 71, 0.9), rgba(6, 30, 36, 0.95));
+            background: linear-gradient(180deg, rgba(12, 54, 71, .9), rgba(6, 30, 36, .95));
             color: #e6fbff;
             font-weight: 700;
             position: sticky;
@@ -121,10 +120,8 @@
             height: auto;
             vertical-align: top;
             padding-right: 36px;
-            /* space for copy button */
         }
 
-        /* prevent body names from wrapping if desired */
         tbody td:first-child {
             white-space: nowrap;
             max-width: 220px;
@@ -133,7 +130,7 @@
         .contest-header {
             background: linear-gradient(90deg, #0b4750, #06323a);
             color: #bff3ed;
-            font-size: 0.9rem;
+            font-size: .9rem;
             line-height: 1.4;
             position: relative;
         }
@@ -143,7 +140,6 @@
             text-decoration: none;
             display: block;
             padding-right: 25px;
-            /* Space for copy button */
             word-break: break-word;
         }
 
@@ -153,21 +149,21 @@
         }
 
         tbody tr:nth-child(odd) {
-            background: rgba(255, 255, 255, 0.01);
+            background: rgba(255, 255, 255, .01);
         }
 
         tbody tr:hover {
-            background: rgba(125, 211, 252, 0.04);
+            background: rgba(125, 211, 252, .04);
         }
 
         .muted {
             color: var(--muted);
-            font-size: 0.85rem;
+            font-size: .85rem;
         }
 
         .notice {
             color: var(--muted);
-            font-size: 0.9rem;
+            font-size: .9rem;
             margin-left: 6px;
         }
 
@@ -177,8 +173,8 @@
             right: 6px;
             padding: 4px 8px;
             font-size: 12px;
-            opacity: 0.8;
-            background: rgba(255, 255, 255, 0.06);
+            opacity: .8;
+            background: rgba(255, 255, 255, .06);
             border-radius: 4px;
             cursor: pointer;
         }
@@ -189,7 +185,7 @@
 
         .score-cell {
             text-align: center;
-            transition: background 0.2s;
+            transition: background .2s;
         }
 
         .score-cell[data-score="0"] {
@@ -197,11 +193,10 @@
         }
 
         .score-cell[data-score]:not([data-score="0"]) {
-            background: rgba(45, 212, 191, 0.08);
-            font-weight: bold;
+            background: rgba(45, 212, 191, .08);
+            font-weight: 700;
         }
 
-        /* pagination */
         .pager {
             display: flex;
             gap: 8px;
@@ -253,12 +248,8 @@
 
         <div class="table-wrap">
             <table id="scoresTable">
-                <thead>
-                    <!-- header rows will be created dynamically -->
-                </thead>
-                <tbody>
-                    <!-- Rows for usernames will be added dynamically -->
-                </tbody>
+                <thead><!-- dynamic --></thead>
+                <tbody><!-- dynamic --></tbody>
             </table>
         </div>
 
@@ -277,17 +268,37 @@
     </div>
 
     <script>
-        // helper: normalize value to milliseconds (api may return seconds or ms)
-        function toMs(v) {
+        /**
+         * Convert an input number to milliseconds.
+         * - If isDuration === true -> treat value as a duration/length.
+         *   Heuristic: if value >= 1e6 -> it's milliseconds already (>= ~16.7 minutes).
+         *              otherwise treat as seconds and multiply by 1000.
+         * - If isDuration === false -> treat value as an absolute timestamp:
+         *   If value >= 1e12 -> already ms (year ~33658+)
+         *   else if value > 1e9 -> epoch seconds, multiply by 1000
+         *   else return as-is multiplied by 1000 (fallback)
+         */
+        function toMs(v, isDuration = false) {
             if (v == null) return 0;
             const n = Number(v);
             if (isNaN(n)) return 0;
-            return n < 1e12 ? n * 1000 : n;
+            if (isDuration) {
+                // duration heuristic
+                // value >= 1e6 -> likely milliseconds (1e6 ms = ~16.7 minutes)
+                if (n >= 1e6) return n;
+                return n * 1000; // treat as seconds
+            } else {
+                // timestamp heuristic
+                if (n >= 1e12) return n;      // already ms
+                if (n > 1e9) return n * 1000; // epoch seconds -> ms
+                // fallback: treat as seconds (relative or small epoch) -> ms
+                return n * 1000;
+            }
         }
 
-        // caching helpers (localStorage) with expiry (ms)
+        // caching helpers
         const CACHE_PREFIX = 'vjudge_cache_';
-        function getCached(key, maxAge = 5 * 60 * 1000) { // default 5 minutes
+        function getCached(key, maxAge = 5 * 60 * 1000) {
             try {
                 const raw = localStorage.getItem(CACHE_PREFIX + key);
                 if (!raw) return null;
@@ -311,11 +322,9 @@
             }
         }
 
-        // fetch with timeout and retry (exponential backoff)
         async function fetchWithTimeout(url, ms = 10000, signalOuter = null) {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), ms);
-            // if outer signal aborts, abort internal as well
             const signal = controller.signal;
             if (signalOuter) {
                 if (signalOuter.aborted) controller.abort();
@@ -337,16 +346,13 @@
                     return await res.json();
                 } catch (err) {
                     lastErr = err;
-                    // if aborted, rethrow immediately
                     if (err.name === 'AbortError') throw err;
-                    // transient backoff
                     await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, i)));
                 }
             }
             throw lastErr;
         }
 
-        // controlled concurrency mapper
         async function pMap(inputs, mapper, concurrency = 4) {
             const results = new Array(inputs.length);
             let idx = 0;
@@ -365,27 +371,15 @@
             return results;
         }
 
-        // pagination state
-        let PAGE_SIZE = 100;
-        let currentPage = 0;
-        let allRowElements = []; // array of <tr> for each user (keeps DOM elements)
-        let usersCount = 0;
-
-        // uploaded people array: { id, name, handle }
+        let PAGE_SIZE = 100, currentPage = 0, allRowElements = [], usersCount = 0;
         let uploadedPeople = [];
 
-        function showStatus(msg) {
-            const s = document.getElementById('status');
-            s.textContent = msg || '';
-        }
+        function showStatus(msg) { document.getElementById('status').textContent = msg || ''; }
 
         function updatePager() {
             const pager = document.getElementById('pager');
             const pageInfo = document.getElementById('pageInfo');
-            if (usersCount <= PAGE_SIZE) {
-                pager.style.display = 'none';
-                return;
-            }
+            if (usersCount <= PAGE_SIZE) { pager.style.display = 'none'; return; }
             pager.style.display = 'flex';
             const totalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
             if (currentPage >= totalPages) currentPage = totalPages - 1;
@@ -394,41 +388,15 @@
             document.getElementById('nextPage').disabled = currentPage === totalPages - 1;
         }
 
-        function changePage(delta) {
-            const totalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE));
-            currentPage = Math.min(Math.max(0, currentPage + delta), totalPages - 1);
-            renderPage();
-            updatePager();
-        }
+        function changePage(delta) { const totalPages = Math.max(1, Math.ceil(usersCount / PAGE_SIZE)); currentPage = Math.min(Math.max(0, currentPage + delta), totalPages - 1); renderPage(); updatePager(); }
+        function onPageSizeChange() { PAGE_SIZE = Number(document.getElementById('pageSize').value) || 100; currentPage = 0; updatePager(); renderPage(); }
+        function renderPage() { const tbody = document.querySelector('#scoresTable tbody'); tbody.innerHTML = ''; const start = currentPage * PAGE_SIZE; const end = Math.min(usersCount, start + PAGE_SIZE); for (let i = start; i < end; i++) tbody.appendChild(allRowElements[i]); updatePager(); }
 
-        function onPageSizeChange() {
-            PAGE_SIZE = Number(document.getElementById('pageSize').value) || 100;
-            currentPage = 0;
-            updatePager();
-            renderPage();
-        }
-
-        function renderPage() {
-            const tbody = document.querySelector('#scoresTable tbody');
-            tbody.innerHTML = ''; // replace visible rows
-            const start = currentPage * PAGE_SIZE;
-            const end = Math.min(usersCount, start + PAGE_SIZE);
-            for (let i = start; i < end; i++) {
-                tbody.appendChild(allRowElements[i]);
-            }
-            updatePager();
-        }
-
-        // main fetchScores with improvements
         async function fetchScores() {
             const contestInput = document.getElementById('contestInput').value.trim();
             const userInputRaw = document.getElementById('userInput').value.trim();
             const loadBtn = document.getElementById('loadBtn');
-
-            if (!contestInput || (!userInputRaw && (!uploadedPeople || uploadedPeople.length === 0))) {
-                alert('Please enter contest IDs and participant usernames or upload a people file.');
-                return;
-            }
+            if (!contestInput || (!userInputRaw && (!uploadedPeople || uploadedPeople.length === 0))) { alert('Please enter contest IDs and participant usernames or upload a people file.'); return; }
 
             loadBtn.disabled = true;
             const prevText = loadBtn.textContent;
@@ -438,8 +406,7 @@
             try {
                 const contests = contestInput.split(/\s+/).filter(Boolean);
 
-                // build users meta from uploaded file (preferred) or from text input
-                const usersMeta = []; // { metricId, displayName, handleNormalized }
+                const usersMeta = [];
                 if (uploadedPeople && uploadedPeople.length) {
                     const seen = new Set();
                     uploadedPeople.forEach(p => {
@@ -462,46 +429,25 @@
                     });
                 }
 
-                usersCount = usersMeta.length;
-                currentPage = 0;
-
+                usersCount = usersMeta.length; currentPage = 0;
                 const table = document.getElementById('scoresTable');
-                const thead = table.querySelector('thead');
-                const tbody = table.querySelector('tbody');
+                const thead = table.querySelector('thead'); const tbody = table.querySelector('tbody');
+                thead.innerHTML = ''; tbody.innerHTML = ''; allRowElements = [];
 
-                // Clear previous table and state
-                thead.innerHTML = '';
-                tbody.innerHTML = '';
-                allRowElements = [];
-
-                // prepare row elements for each user (Metric ID, Name, VJudge ID)
                 for (let i = 0; i < usersMeta.length; i++) {
                     const row = document.createElement('tr');
-                    const tdMetric = document.createElement('td');
-                    tdMetric.textContent = usersMeta[i].metricId || '';
-                    row.appendChild(tdMetric);
-
-                    const tdName = document.createElement('td');
-                    tdName.textContent = usersMeta[i].displayName || '';
-                    row.appendChild(tdName);
-
-                    const tdHandle = document.createElement('td');
-                    tdHandle.textContent = usersMeta[i].handleNormalized || '';
-                    tdHandle.setAttribute('data-handle', usersMeta[i].handleNormalized || '');
-                    row.appendChild(tdHandle);
-
+                    const tdMetric = document.createElement('td'); tdMetric.textContent = usersMeta[i].metricId || ''; row.appendChild(tdMetric);
+                    const tdName = document.createElement('td'); tdName.textContent = usersMeta[i].displayName || ''; row.appendChild(tdName);
+                    const tdHandle = document.createElement('td'); tdHandle.textContent = usersMeta[i].handleNormalized || ''; tdHandle.setAttribute('data-handle', usersMeta[i].handleNormalized || ''); row.appendChild(tdHandle);
                     allRowElements.push(row);
                 }
 
-                // fetch contest data in parallel with controlled concurrency
                 showStatus('Fetching contest data...');
                 const controller = new AbortController();
                 const contestResults = await pMap(contests, async (cid) => {
                     const cacheKey = `contest_${cid}`;
-                    const cached = getCached(cacheKey, 10 * 60 * 1000); // 10 min cache
-                    if (cached) {
-                        return { cid, json: cached };
-                    }
+                    const cached = getCached(cacheKey, 10 * 60 * 1000);
+                    if (cached) return { cid, json: cached };
                     try {
                         const url = `https://vjudge.net/contest/rank/single/${cid}`;
                         const json = await fetchWithRetry(url, 3, 500, controller.signal);
@@ -512,189 +458,121 @@
                     }
                 }, 4);
 
-                // Convert to structured contestData with beginMs/timeStr/etc.
                 const contestData = contestResults.map(r => {
-                    const entry = {
-                        cid: r.cid,
-                        title: `Contest ${r.cid}`,
-                        timeStr: 'N/A',
-                        beginMs: 0,
-                        handleToId: {},
-                        solves: {},
-                        error: null
-                    };
-                    if (r.error) {
-                        entry.error = r.error;
-                        entry.title = `Error: ${r.cid}`;
-                        return entry;
-                    }
+                    const entry = { cid: r.cid, title: `Contest ${r.cid}`, timeStr: 'N/A', beginMs: 0, lengthMs: 0, handleToId: {}, solves: {}, error: null };
+                    if (r.error) { entry.error = r.error; entry.title = `Error: ${r.cid}`; return entry; }
                     const json = r.json;
                     if (json.title) entry.title = json.title;
-                    if (json.begin) {
-                        const beginMs = toMs(json.begin);
-                        entry.beginMs = beginMs;
-                        const begin = new Date(beginMs);
-                        entry.timeStr = begin.toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: 'numeric',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: 'numeric',
-                            hour12: true
-                        });
-                    }
+                    if (json.begin) { const beginMs = toMs(json.begin, false); entry.beginMs = beginMs; const begin = new Date(beginMs); entry.timeStr = begin.toLocaleString(); }
+                    if (json.length) entry.lengthMs = toMs(json.length, true);
+                    else if (json.duration) entry.lengthMs = toMs(json.duration, true);
+                    else if (json.len) entry.lengthMs = toMs(json.len, true);
+
                     if (json.participants) {
                         for (const uid in json.participants) {
                             const p = json.participants[uid];
                             if (Array.isArray(p) && p[0]) entry.handleToId[String(p[0]).toLowerCase()] = uid;
                         }
                     }
+
                     if (Array.isArray(json.submissions)) {
                         json.submissions.forEach(sub => {
                             const [uid, prob, status, time, ...extra] = sub;
-                            if (status !== 1) return;
+                            if (status !== 1) return; // only accepted
                             let isFull = true;
                             if (extra.length >= 2 && extra[0] !== extra[1]) isFull = false;
                             if (!isFull) return;
+
+                            // Strict behavior: require both begin and length to be known
+                            const beginMs = entry.beginMs || 0;
+                            const lengthMs = entry.lengthMs || 0;
+                            if (!(beginMs > 0 && lengthMs > 0)) return;
+
+                            const raw = Number(time); if (isNaN(raw)) return;
+                            let subMs = null;
+                            if (raw >= 1e12) subMs = raw;
+                            else if (raw > 1e9) subMs = raw * 1000;
+                            else {
+                                // small => relative seconds since contest start => convert to ms and add begin
+                                subMs = beginMs + (raw * 1000);
+                            }
+
+                            const windowStart = beginMs;
+                            const windowEnd = beginMs + lengthMs;
+                            if (!(subMs >= windowStart && subMs <= windowEnd)) return;
+
                             const uidStr = String(uid);
                             if (!entry.solves[uidStr]) entry.solves[uidStr] = {};
-                            if (!entry.solves[uidStr][prob] || time < entry.solves[uidStr][prob]) {
+                            if (!entry.solves[uidStr][prob] || Number(time) < Number(entry.solves[uidStr][prob])) {
                                 entry.solves[uidStr][prob] = time;
                             }
                         });
                     }
+
                     return entry;
                 });
 
-                // sort contests by beginMs (most recent first)
                 contestData.sort((a, b) => (b.beginMs || 0) - (a.beginMs || 0));
 
-                // build header rows
-                const rowTop = document.createElement('tr');
-                const rowTime = document.createElement('tr');
-                const rowTotal = document.createElement('tr');
+                const rowTop = document.createElement('tr'), rowTime = document.createElement('tr'), rowTotal = document.createElement('tr');
+                const thMetric = document.createElement('th'); thMetric.textContent = 'Metric ID'; rowTop.appendChild(thMetric);
+                const thRealName = document.createElement('th'); thRealName.textContent = 'Name'; rowTop.appendChild(thRealName);
+                const thVJudge = document.createElement('th'); thVJudge.textContent = 'VJudge ID'; rowTop.appendChild(thVJudge);
+                rowTime.appendChild(document.createElement('th')); rowTime.appendChild(document.createElement('th')); rowTime.appendChild(document.createElement('th'));
+                const thTotalFirst = document.createElement('th'); thTotalFirst.textContent = 'Total'; rowTotal.appendChild(thTotalFirst);
+                rowTotal.appendChild(document.createElement('th')); rowTotal.appendChild(document.createElement('th'));
 
-                // first columns headers (Metric ID, Name, VJudge ID)
-                const thMetric = document.createElement('th');
-                thMetric.textContent = 'Metric ID';
-                rowTop.appendChild(thMetric);
-
-                const thRealName = document.createElement('th');
-                thRealName.textContent = 'Name';
-                rowTop.appendChild(thRealName);
-
-                const thVJudge = document.createElement('th');
-                thVJudge.textContent = 'VJudge ID';
-                rowTop.appendChild(thVJudge);
-
-                // time row placeholders for the three leading columns
-                rowTime.appendChild(document.createElement('th'));
-                rowTime.appendChild(document.createElement('th'));
-                rowTime.appendChild(document.createElement('th'));
-
-                // total row: first cell is "Total", then two blanks to align with Metric/Name columns
-                const thTotalFirst = document.createElement('th');
-                thTotalFirst.textContent = 'Total';
-                rowTotal.appendChild(thTotalFirst);
-                rowTotal.appendChild(document.createElement('th'));
-                rowTotal.appendChild(document.createElement('th'));
-
-                // add contest columns (and create placeholders for totals)
                 contestData.forEach((cd, idx) => {
-                    const thTitle = document.createElement('th');
-                    thTitle.classList.add('contest-header');
-
-                    const link = document.createElement('a');
-                    link.href = `https://vjudge.net/contest/${cd.cid}`;
-                    link.target = '_blank';
-                    link.rel = 'noopener';
-                    link.textContent = cd.title;
-                    link.style.color = 'inherit';
-                    link.style.textDecoration = 'none';
+                    const thTitle = document.createElement('th'); thTitle.classList.add('contest-header');
+                    const link = document.createElement('a'); link.href = `https://vjudge.net/contest/${cd.cid}`; link.target = '_blank'; link.rel = 'noopener'; link.textContent = cd.title; link.style.color = 'inherit'; link.style.textDecoration = 'none';
                     thTitle.appendChild(link);
-
-                    if (cd.error) {
-                        const flag = document.createElement('span');
-                        flag.className = 'error-flag';
-                        flag.textContent = ' ⚠';
-                        thTitle.appendChild(flag);
-                        thTitle.title = cd.error;
-                    }
-
-                    // copy button
-                    const btn = document.createElement('button');
-                    btn.className = 'col-copy';
-                    btn.innerText = '📋';
-                    btn.title = 'Copy column';
-                    // bind copy to column index after header attached
-                    btn.addEventListener('click', () => {
-                        // compute column index in the final table: th.cellIndex will work once appended
-                        copyColumn(thTitle);
-                    });
-                    thTitle.appendChild(btn);
-
+                    if (cd.error) { const flag = document.createElement('span'); flag.className = 'error-flag'; flag.textContent = ' ⚠'; thTitle.appendChild(flag); thTitle.title = cd.error; }
+                    const btn = document.createElement('button'); btn.className = 'col-copy'; btn.innerText = '📋'; btn.title = 'Copy column'; btn.addEventListener('click', () => copyColumn(thTitle)); thTitle.appendChild(btn);
                     rowTop.appendChild(thTitle);
 
                     const thTime = document.createElement('th');
-                    thTime.textContent = cd.timeStr;
+                    if (cd.beginMs && cd.lengthMs) {
+                        const b = new Date(cd.beginMs).toLocaleString(), e = new Date(cd.beginMs + cd.lengthMs).toLocaleString();
+                        thTime.textContent = `${b} — ${e}`;
+                    } else thTime.textContent = cd.timeStr;
                     rowTime.appendChild(thTime);
 
-                    const thTot = document.createElement('th');
-                    thTot.textContent = '0'; // placeholder
-                    rowTotal.appendChild(thTot);
+                    const thTot = document.createElement('th'); thTot.textContent = '0'; rowTotal.appendChild(thTot);
                 });
 
-                thead.appendChild(rowTop);
-                thead.appendChild(rowTime);
-                thead.appendChild(rowTotal);
+                thead.appendChild(rowTop); thead.appendChild(rowTime); thead.appendChild(rowTotal);
 
-                // fill body cells for each contest (append td to each user row element)
                 contestData.forEach((cd, ci) => {
                     let groupTotal = 0;
                     for (let ui = 0; ui < usersMeta.length; ui++) {
                         const userHandle = usersMeta[ui].handleNormalized;
                         const uid = cd.handleToId[userHandle];
                         let count = 0;
-                        if (uid && cd.solves[uid]) {
-                            count = Object.keys(cd.solves[uid]).length;
-                        }
+                        if (uid && cd.solves[uid]) count = Object.keys(cd.solves[uid]).length;
                         groupTotal += count;
-                        const td = document.createElement('td');
-                        td.className = 'score-cell';
-                        td.setAttribute('data-score', String(count));
-                        td.textContent = String(count);
+                        const td = document.createElement('td'); td.className = 'score-cell'; td.setAttribute('data-score', String(count)); td.textContent = String(count);
                         allRowElements[ui].appendChild(td);
                     }
-                    // fill total for this contest in rowTotal (first cell is Total header, then two blank cols)
                     rowTotal.cells[ci + 3].textContent = String(groupTotal);
                 });
 
-                // render first page
-                renderPage();
-                updatePager();
-                showStatus(`Loaded ${contestData.length} contests — ${usersMeta.length} users.`);
+                renderPage(); updatePager(); showStatus(`Loaded ${contestData.length} contests — ${usersMeta.length} users.`);
             } catch (e) {
-                console.error(e);
-                alert('Unexpected error. See console for details.');
+                console.error(e); alert('Unexpected error. See console for details.');
             } finally {
-                loadBtn.disabled = false;
-                loadBtn.textContent = prevText;
+                loadBtn.disabled = false; loadBtn.textContent = prevText;
             }
         }
 
         function handleUpload() {
             const inp = document.getElementById('fileInput');
             if (!inp.files || !inp.files[0]) return alert('Select a CSV/TSV file first.');
-            const f = inp.files[0];
-            const reader = new FileReader();
+            const f = inp.files[0]; const reader = new FileReader();
             reader.onload = () => {
                 try {
                     uploadedPeople = parsePeopleCSV(String(reader.result));
                     document.getElementById('uploadInfo').textContent = `Loaded ${uploadedPeople.length} people from file`;
-                } catch (e) {
-                    console.error(e);
-                    alert('Failed to parse file. Expect CSV/TSV with columns: metric id, name, handle');
-                }
+                } catch (e) { console.error(e); alert('Failed to parse file. Expect CSV/TSV with columns: metric id, name, handle'); }
             };
             reader.readAsText(f);
         }
@@ -702,18 +580,14 @@
         function parsePeopleCSV(text) {
             const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             if (!lines.length) return [];
-            // detect delimiter (comma or tab)
             const delim = lines[0].includes('\t') && !lines[0].includes(',') ? '\t' : ',';
             const cols = lines[0].split(delim).map(c => c.trim().toLowerCase());
             let start = 0;
             let idxId = cols.indexOf('id') >= 0 ? cols.indexOf('id') : (cols.indexOf('metric') >= 0 ? cols.indexOf('metric') : -1);
             let idxName = cols.indexOf('name');
             let idxHandle = cols.indexOf('handle');
-            // if header doesn't look like header, assume first line is data
             if (idxHandle < 0 && idxName < 0 && idxId < 0) {
-                start = 0;
-                // fallback: use first 3 columns
-                idxId = 0; idxName = 1; idxHandle = 2;
+                start = 0; idxId = 0; idxName = 1; idxHandle = 2;
             } else {
                 start = 1;
                 if (idxHandle < 0) idxHandle = cols.length - 1;
@@ -723,11 +597,8 @@
             const out = [];
             for (let i = start; i < lines.length; i++) {
                 const parts = lines[i].split(delim).map(p => p.trim());
-                const id = parts[idxId] || '';
-                const name = parts[idxName] || '';
-                const handle = parts[idxHandle] || '';
-                if (!handle) continue;
-                out.push({ id, name, handle });
+                const id = parts[idxId] || ''; const name = parts[idxName] || ''; const handle = parts[idxHandle] || '';
+                if (!handle) continue; out.push({ id, name, handle });
             }
             return out;
         }
@@ -735,65 +606,29 @@
         function copyTable() {
             const table = document.getElementById('scoresTable');
             if (!table) return alert('No table found.');
-
             const rows = Array.from(table.querySelectorAll('tr'));
-            const lines = rows.map(tr => {
-                const cells = Array.from(tr.querySelectorAll('th,td'));
-                return cells.map(c => c.innerText.replace(/\t/g, ' ').trim()).join('\t');
-            });
-
+            const lines = rows.map(tr => Array.from(tr.querySelectorAll('th,td')).map(c => c.innerText.replace(/\t/g, ' ').trim()).join('\t'));
             const text = lines.join('\n');
             if (!navigator.clipboard) {
                 const ta = document.createElement('textarea');
-                ta.value = text;
-                document.body.appendChild(ta);
-                ta.select();
-                try {
-                    document.execCommand('copy');
-                    alert('Table copied to clipboard');
-                } catch (e) {
-                    alert('Copy failed');
-                }
-                ta.remove();
-                return;
+                ta.value = text; document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); alert('Table copied to clipboard'); } catch (e) { alert('Copy failed'); }
+                ta.remove(); return;
             }
-
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Table copied to clipboard (TSV). You can paste into a spreadsheet.');
-            }, () => {
-                alert('Copy failed.');
-            });
+            navigator.clipboard.writeText(text).then(() => alert('Table copied to clipboard (TSV). You can paste into a spreadsheet.'), () => alert('Copy failed.'));
         }
 
         function copyColumn(headerCell) {
             const table = document.getElementById('scoresTable');
-            // find index of headerCell in its row (use cellIndex of first header row)
-            // if headerCell not attached directly (sometimes wrapped), find by matching element in the first header row
             let colIndex = headerCell.cellIndex;
-            // Fallback: if not useful, find index by searching first header row children
             if (typeof colIndex === 'undefined') {
                 const firstRow = table.tHead ? table.tHead.rows[0] : null;
-                if (firstRow) {
-                    const ths = Array.from(firstRow.cells);
-                    colIndex = ths.indexOf(headerCell);
-                }
+                if (firstRow) { const ths = Array.from(firstRow.cells); colIndex = ths.indexOf(headerCell); }
             }
             if (typeof colIndex !== 'number' || colIndex < 0) return alert('Cannot determine column index.');
-
             const rows = Array.from(table.rows);
-            const colData = rows.map(row => {
-                const cell = row.cells[colIndex];
-                return cell ? cell.textContent.trim() : '';
-            }).join('\n');
-
-            navigator.clipboard.writeText(colData).then(() => {
-                const btn = headerCell.querySelector('.col-copy');
-                if (btn) {
-                    const prev = btn.innerText;
-                    btn.innerText = '✓';
-                    setTimeout(() => (btn.innerText = prev), 900);
-                }
-            }).catch(() => alert('Copy failed'));
+            const colData = rows.map(row => { const cell = row.cells[colIndex]; return cell ? cell.textContent.trim() : ''; }).join('\n');
+            navigator.clipboard.writeText(colData).then(() => { const btn = headerCell.querySelector('.col-copy'); if (btn) { const prev = btn.innerText; btn.innerText = '✓'; setTimeout(() => (btn.innerText = prev), 900); } }).catch(() => alert('Copy failed'));
         }
     </script>
 </body>
